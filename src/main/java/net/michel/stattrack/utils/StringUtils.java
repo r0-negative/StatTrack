@@ -2,6 +2,12 @@ package net.michel.stattrack.utils;
 
 public class StringUtils {
 
+    /**
+     * Generates a random string of the given length.
+     *
+     * @param length The length of the string.
+     * @return The generated string.
+     */
     public static String generateRandomString(int length) {
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         StringBuilder result = new StringBuilder();

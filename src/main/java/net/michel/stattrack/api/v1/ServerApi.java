@@ -46,6 +46,9 @@ public class ServerApi {
             return;
         }
 
+        String fullName = ctx.queryParamAsClass("fullName", String.class).getOrDefault(null);
+        if (fullName == null || fullName.isEmpty()) fullName = name;
+
         if (StatTrack.instance.serverExists(name)) {
             responseError(ctx, "server already exists");
             return;
@@ -55,7 +58,7 @@ public class ServerApi {
         json.put("success", true);
         json.put("name", name);
 
-        var server = new Server(name, true, 0, 0, 0, System.currentTimeMillis());
+        var server = new Server(name, fullName, true, 0, 0, 0, System.currentTimeMillis());
         StatTrack.instance.getServers().add(server);
         ctx.result(json.toString());
     }
@@ -96,20 +99,11 @@ public class ServerApi {
         ctx.result(json.toString());
     }
 
-    private static boolean checkKey(Context ctx) {
-        String key = ctx.queryParamAsClass("key", String.class).getOrDefault(null);
-        if (key == null || !key.equals(StatTrack.instance.getConfig().getSecretKey())) {
-            return true;
-        }
-        return false;
-    }
-
-    private static void responseError(Context ctx, String error) {
-        JSONObject json = new JSONObject();
-        json.put("error", error);
-        ctx.result(json.toString());
-    }
-
+    /**
+     * Returns information about a server.
+     *
+     * @param context The context of the request.
+     */
     public static void serverInfo(Context context) {
         String name = context.queryParamAsClass("name", String.class).getOrDefault(null);
         if (name == null || name.isEmpty()) {
@@ -130,5 +124,31 @@ public class ServerApi {
         json.put("maxPlayers", server.getMaxPlayers());
         json.put("ping", server.getPing());
         context.result(json.toString());
+    }
+
+    /**
+     * Checks if the key is valid.
+     *
+     * @param ctx The context of the request.
+     * @return True if the key is valid, false otherwise.
+     */
+    private static boolean checkKey(Context ctx) {
+        String key = ctx.queryParamAsClass("key", String.class).getOrDefault(null);
+        if (key == null || !key.equals(StatTrack.instance.getConfig().getSecretKey())) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Sends an error response.
+     *
+     * @param ctx   The context of the request.`
+     * @param error The error message.
+     */
+    private static void responseError(Context ctx, String error) {
+        JSONObject json = new JSONObject();
+        json.put("error", error);
+        ctx.result(json.toString());
     }
 }

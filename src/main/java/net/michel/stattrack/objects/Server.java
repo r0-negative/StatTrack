@@ -9,6 +9,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Server {
     private String name;
+    private String fullName;
     private boolean online;
     private int players;
     private int maxPlayers;
