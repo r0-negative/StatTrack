@@ -3,8 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <title>StatTrack</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'cairo': ['"Cairo"', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-hi
+<body class="text-white font-cairo bg-neutral-900">
+
+<div class="flex flex-col space-y-22 flex">
+    <div class="flex flex-col space-y-6 flex">
+
+        <div class="bg-neutral-800 px-2 sm:px-10 py-5 flex text-4xl">
+            StatTrack
+        </div>
+
+        <div id="ServersStatus">
+
+        </div>
+
+    </div>
+
+    <div class="py-20" id="content">
+    </div>
+
+
+</div>
+
+<script>
+    const loadedServers = [];
+
+    function createGraph(labels, dataset, tooltip, elementId) {
+        const data = {
+            labels: labels,
+            datasets: [
+                {
+                    backgroundColor: "rgba(246, 153, 63, 0.1)",
+                    borderColor: "rgb(91,151,242)",
+                    borderWidth: 2,
+                    data: dataset,
+                },
+            ],
+        };
+        const config = {
+            type: "line",
+            data,
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    scales: {
+                        xAxes: [{
+                            gridLines: false,
+                            scaleLabel: false,
+                            ticks: {
+                                display: false
+                            }
+                        }],
+                        yAxes: [{
+                            gridLines: false,
+                            scaleLabel: false,
+                            ticks: {
+                                display: false,
+                                suggestedMin: 0,
+                                suggestedMax: 10
+                            }
+                        }]
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return null;
+                            },
+                            title: function (context) {
+                                return tooltip + ': ' + context[0].formattedValue;
+                            },
+
+                        }
+                    },
+                },
+                elements: {
+                    point: {
+                        radius: 2
+                    },
+                },
+            },
+        };
+
+        const chart = new Chart(document.getElementById(elementId), config);
+    }
+
+    window.onload = function () {
+        var content = document.getElementById('content');
+
+        fetch('/api/v1/serverlist')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error !== undefined) {
+                    return;
+                }
+
+                let servers = data.servers;
+
+                servers.forEach(server => {
+                    loadedServers.push(server);
+                    content.innerHTML += '        <div class="border-2 border-neutral-800 rounded w-6/12 px-5 sm:px-5 py-5 h-38 mx-auto" id="' + server + 'Content">\n' +
+                        '        </div>';
+                });
+                updateData();
+            });
+
+        setInterval(updateData, 60000);
+
+
+        async function updateData() {
+            let serversOnline = true;
+
+            for (const server of loadedServers) {
+                const content = document.getElementById(server + 'Content');
+                let online = false;
+
+                await fetch('/api/v1/serverinfo?name=' + server)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error !== undefined) {
+                            return;
+                        }
+                        online = data.online;
+                    });
+
+                await fetch('/api/v1/servergraph?name=' + server)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error !== undefined) {
+                            return;
+                        }
+
+                        const labels = [];
+                        const dataset = [];
+                        data.players.forEach(player => {
+                            labels.push(player.time);
+                            dataset.push(player.players);
+                        });
+
+                        let status = online ? 'Operational' : 'Offline';
+                        let color = online ? 'text-green-600' : 'text-red-600';
+
+                        if (!online) {
+                            serversOnline = false;
+                        }
+                        console.log(online);
+                        console.log(serversOnline);
+
+                        content.innerHTML = '            <a class="text-xl">' + server + '</a>\n' +
+                            '            <span class="inline float-right ' + color + '" id="' + server + 'Status">' + status + '</span>\n' +
+                            '\n' +
+                            '            <div class="py-4">\n' +
+                            '                <canvas id="' + server + 'Chart" height="100rem"></canvas>\n' +
+                            '            </div>\n';
+
+                        createGraph(labels,
+                            dataset,
+                            "Online", server + "Chart"
+                        )
+                    });
+
+            }
+
+            let status = document.getElementById('ServersStatus');
+
+            let color = serversOnline ? 'bg-green-700' : 'bg-red-700';
+            let text = serversOnline ? 'All systems operational' : 'Some systems may have some issues';
+
+            console.log(serversOnline + ' ' + color + ' ' + text);
+
+            status.innerHTML = '            <div class="' + color + ' rounded w-6/12 px-2 sm:px-10 py-4 text-2xl m-auto">\n' +
+                text + '\n' +
+                '            </div>';
+        }
+    };
+</script>
+
 </body>
 </html>

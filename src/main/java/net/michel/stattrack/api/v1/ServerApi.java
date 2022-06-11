@@ -2,9 +2,14 @@ package net.michel.stattrack.api.v1;
 
 import io.javalin.http.Context;
 import net.michel.stattrack.StatTrack;
+import net.michel.stattrack.objects.GraphData;
 import net.michel.stattrack.objects.Server;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 public class ServerApi {
 
@@ -58,7 +63,15 @@ public class ServerApi {
         json.put("success", true);
         json.put("name", name);
 
-        var server = new Server(name, fullName, true, 0, 0, 0, System.currentTimeMillis());
+        var server = new Server(name, fullName, true, 0, 0, System.currentTimeMillis());
+
+
+        Instant time = Instant.now().minus(300, ChronoUnit.MINUTES);
+        for (int i = 10; i > 0; i--) {
+            time = time.plus(30, ChronoUnit.MINUTES);
+            server.getPlayers().add(new GraphData(time.toEpochMilli(), 0));
+        }
+
         StatTrack.instance.getServers().add(server);
         ctx.result(json.toString());
     }
@@ -91,7 +104,8 @@ public class ServerApi {
             return;
         }
 
-        server.updateServer(online, players, maxPlayers, ping);
+        server.updateServer(online, maxPlayers, ping);
+        server.updatePlayers(players);
 
         JSONObject json = new JSONObject();
         json.put("success", true);
@@ -119,10 +133,47 @@ public class ServerApi {
 
         JSONObject json = new JSONObject();
         json.put("name", server.getName());
+        json.put("fullName", server.getFullName());
         json.put("online", server.isOnline());
         json.put("players", server.getPlayers());
         json.put("maxPlayers", server.getMaxPlayers());
         json.put("ping", server.getPing());
+        context.result(json.toString());
+    }
+
+
+    /**
+     * Returns the server graph data as a json.
+     * @param context The context of the request.
+     */
+    public static void serverGraph(Context context) {
+        String name = context.queryParamAsClass("name", String.class).getOrDefault(null);
+        if (name == null || name.isEmpty()) {
+            responseError(context, "name is required");
+            return;
+        }
+
+        var server = StatTrack.instance.getServerByName(name);
+        if (server == null) {
+            responseError(context, "server does not exist");
+            return;
+        }
+
+        JSONObject json = new JSONObject();
+        json.put("success", true);
+        json.put("name", server.getName());
+
+        JSONArray array = new JSONArray();
+        server.getPlayers().forEach(player -> {
+            JSONObject obj = new JSONObject();
+
+            var time = new SimpleDateFormat("HH:mm").format(player.getKey());
+
+            obj.put("time", time);
+            obj.put("players", player.getValue());
+            array.put(obj);
+        });
+        json.put("players", array);
         context.result(json.toString());
     }
 
@@ -134,10 +185,7 @@ public class ServerApi {
      */
     private static boolean checkKey(Context ctx) {
         String key = ctx.queryParamAsClass("key", String.class).getOrDefault(null);
-        if (key == null || !key.equals(StatTrack.instance.getConfig().getSecretKey())) {
-            return true;
-        }
-        return false;
+        return key == null || !key.equals(StatTrack.instance.getConfig().getSecretKey());
     }
 
     /**

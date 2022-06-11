@@ -27,9 +27,7 @@ public class StatTrack {
     public void init() {
         instance = this;
         this.config = new Config();
-        this.javalin = Javalin.create(config -> {
-            config.addStaticFiles("/public", Location.CLASSPATH);
-        });
+        this.javalin = Javalin.create(config -> config.addStaticFiles("/public", Location.CLASSPATH));
     }
 
     public void start() {
@@ -41,29 +39,25 @@ public class StatTrack {
         var rateLimit = new RateLimiter(TimeUnit.MINUTES);
 
         javalin.before(ctx -> {
-            if (ctx.path().startsWith("/api")) rateLimit.incrementCounter(ctx, 15);
+            if (ctx.path().startsWith("/api")) rateLimit.incrementCounter(ctx, 100);
         });
 
-        javalin.routes(() -> {
-            path("/api/v1", () -> {
-                get("serverlist", ServerApi::getServerList);
-                get("addserver", ServerApi::addServerToList);
-                get("updateserver", ServerApi::serverUpdate);
-                get("serverinfo", ServerApi::serverInfo);
-            });
-        });
+        javalin.routes(() -> path("/api/v1", () -> {
+            get("serverlist", ServerApi::getServerList);
+            get("addserver", ServerApi::addServerToList);
+            get("updateserver", ServerApi::serverUpdate);
+            get("serverinfo", ServerApi::serverInfo);
+            get("servergraph", ServerApi::serverGraph);
+        }));
 
         javalin.start(config.getPort());
 
-        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
-            servers.forEach(server -> {
-                if (System.currentTimeMillis() - server.getLastUpdate() > TimeUnit.MINUTES.toMillis(10)) {
-                    server.setOnline(false);
-                    System.err.println("Server " + server.getName() + " is not responding");
-                    //todo: send a webhook to discord
-                }
-            });
-        }, 5, 15, TimeUnit.MINUTES);
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> servers.forEach(server -> {
+                    if (System.currentTimeMillis() - server.getLastUpdate() > TimeUnit.MINUTES.toMillis(10)) {
+                        server.setOnline(false);
+                        //todo: send a webhook to discord
+                    }
+                }), 5, 15, TimeUnit.MINUTES);
     }
 
 
