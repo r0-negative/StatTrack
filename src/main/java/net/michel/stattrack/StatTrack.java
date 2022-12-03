@@ -52,26 +52,23 @@ public class StatTrack {
 
         javalin.start(config.getPort());
 
-        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> servers.forEach(server -> {
-                    if (System.currentTimeMillis() - server.getLastUpdate() > TimeUnit.MINUTES.toMillis(10)) {
-                        server.setOnline(false);
-                        //todo: send a webhook to discord
-                    }
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> servers.stream()
+                .filter(server -> System.currentTimeMillis() - server.getLastUpdate() > TimeUnit.MINUTES.toMillis(10))
+                .forEach(server -> {
+                    server.setOnline(false);
+                    //todo: send a webhook to discord
                 }), 5, 15, TimeUnit.MINUTES);
     }
 
 
     public boolean serverExists(String name) {
-        for (Server server : servers) {
-            if (server.getName().equals(name)) return true;
-        }
-        return false;
+        return servers.stream().anyMatch(server -> server.getName().equals(name));
     }
 
     public Server getServerByName(String name) {
-        for (Server server : servers) {
-            if (server.getName().equals(name)) return server;
-        }
-        return null;
+        return servers.stream()
+                .filter(server -> server.getName().equals(name))
+                .findFirst()
+                .orElse(null);
     }
 }
